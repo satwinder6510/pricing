@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Google Flights API - Multi City</title>
+  <style>
+    body { font-family: sans-serif; padding: 30px; background: #f9f9f9; }
+    label { display: block; margin-top: 1em; }
+    input, select { width: 100%; padding: 8px; font-size: 16px; text-transform: uppercase; margin-top: 5px; }
+    button { margin-top: 1.5em; padding: 10px 20px; font-size: 16px; background: #2ca793; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    pre { margin-top: 2em; white-space: pre-wrap; background: #eee; padding: 10px; }
+    .leg { display: flex; gap: 1em; margin-top: 0.5em; }
+    .leg input { flex: 1; }
+  </style>
+</head>
+<body>
+  <h1>🛫 Google Flights Multi-City Search</h1>
+  <form id="flightForm">
+    <label>TRIP TYPE:
+      <select name="TYPE" id="tripType">
+        <option value="1">ROUND TRIP</option>
+        <option value="2">ONE WAY</option>
+        <option value="3">MULTI CITY</option>
+      </select>
+    </label>
+
+    <div id="singleCityFields">
+      <label>DEPARTURE_ID (IATA):
+        <input type="text" name="DEPARTURE_ID" />
+      </label>
+      <label>ARRIVAL_ID (IATA):
+        <input type="text" name="ARRIVAL_ID" />
+      </label>
+      <label>OUTBOUND_DATE:
+        <input type="date" name="OUTBOUND_DATE" />
+      </label>
+      <label id="returnDateLabel">RETURN_DATE:
+        <input type="date" name="RETURN_DATE" />
+      </label>
+    </div>
+
+    <div id="multiCityFields" style="display:none;">
+      <h3>Multi-City Legs:</h3>
+      <div id="legs">
+        <div class="leg">
+          <input placeholder="FROM (IATA)" class="from" />
+          <input placeholder="TO (IATA)" class="to" />
+          <input type="date" class="date" />
+        </div>
+      </div>
+      <button type="button" onclick="addLeg()">+ Add Leg</button>
+    </div>
+
+    <label>ADULTS:
+      <input type="number" name="ADULTS" min="1" value="1" />
+    </label>
+    <label>CURRENCY:
+      <input type="text" name="CURRENCY" value="GBP" />
+    </label>
+    <label>GL (Country):
+      <input type="text" name="GL" value="UK" />
+    </label>
+    <label>HL (Language):
+      <input type="text" name="HL" value="EN" />
+    </label>
+
+    <button type="submit">🔍 SEARCH</button>
+  </form>
+
+  <pre id="output"></pre>
+
+  <script>
+    const tripType = document.getElementById('tripType');
+    const multiCityFields = document.getElementById('multiCityFields');
+    const singleCityFields = document.getElementById('singleCityFields');
+    const returnDateLabel = document.getElementById('returnDateLabel');
+
+    tripType.addEventListener('change', () => {
+      const type = tripType.value;
+      multiCityFields.style.display = (type === '3') ? 'block' : 'none';
+      singleCityFields.style.display = (type === '3') ? 'none' : 'block';
+      returnDateLabel.style.display = (type === '1') ? 'block' : 'none';
+    });
+
+    function addLeg() {
+      const leg = document.createElement('div');
+      leg.className = 'leg';
+      leg.innerHTML = `
+        <input placeholder="FROM (IATA)" class="from" />
+        <input placeholder="TO (IATA)" class="to" />
+        <input type="date" class="date" />
+      `;
+      document.getElementById('legs').appendChild(leg);
+    }
+
+    document.getElementById('flightForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const params = new URLSearchParams();
+
+      // Engine and API key
+      params.append("engine", "google_flights");
+      params.append("api_key", "c9732aa5634acf99949565e1de757c7a074e8beb4e9040881c17089378247ec9");
+
+      const type = formData.get("TYPE");
+      params.append("type", type);
+
+      if (type === "3") {
+        // Build multi_city_json
+        const legs = [...document.querySelectorAll('.leg')].map(leg => ({
+          departure_id: leg.querySelector('.from').value.toUpperCase(),
+          arrival_id: leg.querySelector('.to').value.toUpperCase(),
+          date: leg.querySelector('.date').value
+        }));
+
+        const encoded = encodeURIComponent(JSON.stringify(legs));
+        params.append("multi_city_json", encoded);
+      } else {
+        for (const [key, value] of formData.entries()) {
+          if (value && key !== "TYPE") {
+            params.append(key.toLowerCase(), value.toUpperCase());
+          }
+        }
+      }
+
+      const url = `https://serpapi.com/search?${params.toString()}`;
+      document.getElementById('output').textContent = 'Fetching...';
+
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        document.getElementById('output').textContent = JSON.stringify(json, null, 2);
+      } catch (err) {
+        document.getElementById('output').textContent = '❌ Error fetching: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
